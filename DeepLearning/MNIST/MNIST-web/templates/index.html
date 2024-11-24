@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>手写数字识别</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+        #canvas {
+            border: 2px solid #333;
+            display: grid;
+            grid-template-columns: repeat(28, 10px);
+            grid-template-rows: repeat(28, 10px);
+            gap: 1px;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .pixel {
+            width: 10px;
+            height: 10px;
+            background-color: white;
+            border: 1px solid #ccc;
+        }
+        button {
+            margin: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        #result {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+    </style>
+</head>
+<body>
+    <h1>手写数字识别</h1>
+    <div id="canvas"></div>
+    <br>
+    <button id="clear">清除</button>
+    <button id="predict">预测</button>
+    <br>
+    <h2>预测结果: <span id="result"></span></h2>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const clearButton = document.getElementById('clear');
+        const predictButton = document.getElementById('predict');
+        const resultSpan = document.getElementById('result');
+
+        const pixels = [];
+        let isDrawing = false;
+
+        // 创建28x28的方格
+        for (let i = 0; i < 28 * 28; i++) {
+            const pixel = document.createElement('div');
+            pixel.classList.add('pixel');
+            pixel.addEventListener('mousedown', () => {
+                isDrawing = true;
+                pixel.style.backgroundColor = 'black';
+            });
+            pixel.addEventListener('mouseover', () => {
+                if (isDrawing) {
+                    pixel.style.backgroundColor = 'black';
+                }
+            });
+            canvas.appendChild(pixel);
+            pixels.push(pixel);
+        }
+
+        canvas.addEventListener('mouseup', () => {
+            isDrawing = false;
+        });
+
+        clearButton.addEventListener('click', () => {
+            pixels.forEach(pixel => {
+                pixel.style.backgroundColor = 'white';
+            });
+            resultSpan.textContent = '';
+        });
+
+        predictButton.addEventListener('click', () => {
+            const imageData = new ImageData(28, 28);
+            for (let i = 0; i < 28 * 28; i++) {
+                const color = pixels[i].style.backgroundColor;
+                const value = color === 'black' ? 255 : 0;
+                imageData.data[i * 4] = value;
+                imageData.data[i * 4 + 1] = value;
+                imageData.data[i * 4 + 2] = value;
+                imageData.data[i * 4 + 3] = 255;
+            }
+            const canvasElement = document.createElement('canvas');
+            canvasElement.width = 28;
+            canvasElement.height = 28;
+            const ctx = canvasElement.getContext('2d');
+            ctx.putImageData(imageData, 0, 0);
+            const imageDataURL = canvasElement.toDataURL('image/png');
+
+            fetch('/predict', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ image: imageDataURL })
+            })
+            .then(response => response.json())
+            .then(data => {
+                resultSpan.textContent = data.prediction;
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        });
+    </script>
+</body>
+</html>
